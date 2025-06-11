@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏥 Medical Audio Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: #e0e0e5;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .group-box {
+            border: 1px solid #3b3b5b;
+            border-radius: 6px;
+            background-color: #232338;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .group-box-title {
+            background-color: #3b3b5b;
+            color: #e0e0e5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .splitter {
+            display: flex;
+            height: calc(100vh - 32px);
+            margin: 16px;
+            gap: 12px;
+        }
+        .left-panel {
+            flex: 0 0 40%;
+            max-width: 500px;
+            min-width: 300px;
+            overflow-y: auto;
+        }
+        .right-panel {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .btn {
+            background-color: #5c6bc0;
+            color: #ffffff;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #7986cb;
+        }
+        .btn:disabled {
+            background-color: #4b5bb0;
+            color: #a0a0b0;
+            cursor: not-allowed;
+        }
+        .btn-upload { background-color: #43a047; }
+        .btn-upload:hover { background-color: #4caf50; }
+        .btn-record { background-color: #fb8c00; }
+        .btn-record:hover { background-color: #ff9800; }
+        .btn-remove { background-color: #d32f2f; }
+        .btn-remove:hover { background-color: #e53935; }
+        .btn-analyze { background-color: #ab47bc; }
+        .btn-analyze:hover { background-color: #ba68c8; }
+        .btn-feedback { background-color: #0288d1; }
+        .btn-feedback:hover { background-color: #039be5; }
+        .table-container {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #2a2a3f;
+        }
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid #3b3b5b;
+            text-align: left;
+        }
+        th {
+            background-color: #3b3b5b;
+            font-weight: 600;
+        }
+        textarea, select, input[type="text"] {
+            background-color: #2a2a3f;
+            color: #e0e0e5;
+            border: 1px solid #3b3b5b;
+            border-radius: 4px;
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        textarea:focus, select:focus, input[type="text"]:focus {
+            border-color: #5c6bc0;
+            outline: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 28px;
+            background-color: #2a2a3f;
+            border: 1px solid #3b3b5b;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress-bar-inner {
+            height: 100%;
+            background-color: #5c6bc0;
+            width: 0;
+            transition: width 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <div class="splitter">
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <h1 class="text-center text-2xl font-bold text-white py-4 border-b border-[#3b3b5b]">
+                🏥 Medical Audio Analysis
+            </h1>
+            <!-- Configuration -->
+            <div class="group-box">
+                <div class="group-box-title">⚙️ Configuration</div>
+                <label class="block mb-2">Clinical Sheet:</label>
+                <select id="clinicalSheet" class="mb-4">
+                    <option value="">Select a clinical sheet</option>
+                </select>
+                <label class="block mb-2">Language:</label>
+                <select id="language" class="mb-4">
+                    <option value="en">English</option>
+                    <option value="ar">Arabic</option>
+                </select>
+                <label class="block mb-2">Doctor Name (Optional):</label>
+                <input type="text" id="doctor" placeholder="Enter doctor's name" class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="conversational" class="mr-2">
+                    Conversational Mode
+                </label>
+            </div>
+            <!-- Audio Input -->
+            <div class="group-box">
+                <div class="group-box-title">🎵 Audio Input</div>
+                <!-- File Upload -->
+                <div class="mb-4">
+                    <div class="flex gap-2 mb-2">
+                        <button id="uploadBtn" class="btn btn-upload flex-1">📁 Select File</button>
+                        <button id="removeFileBtn" class="btn btn-remove flex-1 hidden">🗑️ Remove</button>
+                    </div>
+                    <p id="fileLabel" class="text-[#b0b0c0] italic">No file selected</p>
+                </div>
+                <p class="text-center text-[#b0b0c0] font-semibold">─── OR ───</p>
+                <!-- Recording -->
+                <div class="mt-4">
+                    <div class="flex gap-2 mb-2">
+                        <button id="recordBtn" class="btn btn-record flex-1">🎤 Start Recording</button>
+                        <button id="clearRecordingBtn" class="btn btn-remove flex-1 hidden">🗑️ Clear</button>
+                    </div>
+                    <p id="recordingLabel" class="text-[#b0b0c0] italic">Ready to record</p>
+                </div>
+            </div>
+            <!-- Analysis -->
+            <div class="group-box">
+                <div class="group-box-title">🔍 Analysis</div>
+                <button id="analyzeBtn" class="btn btn-analyze w-full mb-2" disabled>🚀 Analyze Audio</button>
+                <div id="progressBar" class="progress-bar hidden">
+                    <div id="progressBarInner" class="progress-bar-inner"></div>
+                </div>
+            </div>
+            <!-- Feedback -->
+            <div class="group-box">
+                <div class="group-box-title">💬 Feedback</div>
+                <textarea id="feedback" placeholder="Share your feedback about the analysis results..." class="mb-2 h-24"></textarea>
+                <button id="feedbackBtn" class="btn btn-feedback w-full" disabled>📤 Send Feedback</button>
+            </div>
+        </div>
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <h1 class="text-center text-2xl font-bold text-white py-4 border-b border-[#3b3b5b]">
+                📊 Analysis Results
+            </h1>
+            <div class="overflow-y-auto h-[calc(100%-80px)]">
+                <div class="group-box">
+                    <div class="group-box-title">📝 Raw Transcription</div>
+                    <textarea id="rawText" readonly class="h-24"></textarea>
+                </div>
+                <div class="group-box">
+                    <div class="group-box-title">✨ Refined Text</div>
+                    <textarea id="refinedText" readonly class="h-24"></textarea>
+                </div>
+                <div class="group-box">
+                    <div class="group-box-title">🌐 Translation</div>
+                    <textarea id="translationText" readonly class="h-24"></textarea>
+                </div>
+                <div class="group-box">
+                    <div class="group-box-title">🏥 Medical Data Extraction</div>
+                    <div class="table-container">
+                        <table id="jsonTable">
+                            <thead>
+                                <tr>
+                                    <th>Field</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="group-box">
+                    <div class="group-box-title">🧠 AI Reasoning</div>
+                    <textarea id="reasoning" readonly class="h-24"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <input type="file" id="fileInput" accept=".wav,.mp3,.m4a,.ogg,.flac" class="hidden">
+    <script>
+        const { ipcRenderer } = require('electron');
+        const fs = require('fs').promises;
+        const path = require('path');
+
+        const API_BASE = 'http://localhost:8587';
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioFilePath = null;
+        let audioSource = null;
+        let recording = false;
+        let recordingTime = 0;
+        let recordingInterval;
+        let resultId = null;
+
+        // DOM Elements
+        const clinicalSheetInput = document.getElementById('clinicalSheet');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const removeFileBtn = document.getElementById('removeFileBtn');
+        const fileLabel = document.getElementById('fileLabel');
+        const recordBtn = document.getElementById('recordBtn');
+        const clearRecordingBtn = document.getElementById('clearRecordingBtn');
+        const recordingLabel = document.getElementById('recordingLabel');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const progressBar = document.getElementById('progressBar');
+        const feedbackBtn = document.getElementById('feedbackBtn');
+        const feedbackInput = document.getElementById('feedback');
+        const languageInput = document.getElementById('language');
+        const doctorInput = document.getElementById('doctor');
+        const conversationalInput = document.getElementById('conversational');
+        const rawText = document.getElementById('rawText');
+        const refinedText = document.getElementById('refinedText');
+        const translationText = document.getElementById('translationText');
+        const reasoningText = document.getElementById('reasoning');
+        const jsonTableBody = document.querySelector('#jsonTable tbody');
+
+        // Populate Clinical Sheets
+        async function populateClinicalSheets() {
+            try {
+                const response = await fetch(`${API_BASE}/get_forms`);
+                if (response.ok) {
+                    const formNames = await response.json();
+                    clinicalSheetInput.innerHTML = '<option value="">Select a clinical sheet</option>';
+                    formNames.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        clinicalSheetInput.appendChild(option);
+                    });
+                } else {
+                    console.error('Failed to fetch clinical sheets:', await response.text());
+                    clinicalSheetInput.innerHTML = '<option value="">Error loading sheets</option>';
+                }
+            } catch (error) {
+                console.error('Error fetching clinical sheets:', error);
+                clinicalSheetInput.innerHTML = '<option value="">Error loading sheets</option>';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            populateClinicalSheets();
+        });
+
+        // File Upload
+        uploadBtn.addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                clearRecording();
+                audioFilePath = file;
+                audioSource = 'file';
+                fileLabel.textContent = `✅ Selected: ${file.name}`;
+                fileLabel.className = 'text-[#43a047] font-semibold';
+                removeFileBtn.classList.remove('hidden');
+                disableRecordingControls();
+                checkReadyToAnalyze();
+            }
+        });
+
+        removeFileBtn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to remove the selected audio file?')) {
+                audioFilePath = null;
+                audioSource = null;
+                fileLabel.textContent = 'No file selected';
+                fileLabel.className = 'text-[#b0b0c0] italic';
+                removeFileBtn.classList.add('hidden');
+                enableRecordingControls();
+                checkReadyToAnalyze();
+            }
+        });
+
+        // Audio Recording
+        recordBtn.addEventListener('click', () => {
+            if (!recording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        });
+
+        async function startRecording() {
+            removeFile();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                const tempFile = path.join(require('os').tmpdir(), `recording_${Date.now()}.wav`);
+                await fs.writeFile(tempFile, Buffer.from(arrayBuffer));
+                audioFilePath = tempFile;
+                audioSource = 'recording';
+                recordingLabel.textContent = `✅ Recording saved: ${path.basename(tempFile)}`;
+                recordingLabel.className = 'text-[#43a047] font-semibold';
+                clearRecordingBtn.classList.remove('hidden');
+                checkReadyToAnalyze();
+            };
+
+            mediaRecorder.start();
+            recording = true;
+            recordingTime = 0;
+            recordBtn.textContent = '⏹️ Stop Recording';
+            recordBtn.className = 'btn btn-remove flex-1';
+            recordingLabel.textContent = '🔴 Recording... 00:00';
+            recordingLabel.className = 'text-[#ef5350] font-semibold';
+            recordingInterval = setInterval(updateRecordingTime, 1000);
+            disableFileControls();
+        }
+
+        async function stopRecording() {
+            recording = false;
+            clearInterval(recordingInterval);
+            mediaRecorder.stop();
+            recordBtn.textContent = '🎤 Start Recording';
+            recordBtn.className = 'btn btn-record flex-1';
+        }
+
+        clearRecordingBtn.addEventListener('click', async () => {
+            if (audioSource === 'recording' && audioFilePath) {
+                if (confirm('Are you sure you want to clear the recording?')) {
+                    await fs.unlink(audioFilePath).catch(() => {});
+                    audioFilePath = null;
+                    audioSource = null;
+                    recordingLabel.textContent = 'Ready to record';
+                    recordingLabel.className = 'text-[#b0b0c0] italic';
+                    clearRecordingBtn.classList.add('hidden');
+                    enableFileControls();
+                    checkReadyToAnalyze();
+                }
+            }
+        });
+
+        function updateRecordingTime() {
+            recordingTime++;
+            const minutes = Math.floor(recordingTime / 60);
+            const seconds = recordingTime % 60;
+            recordingLabel.textContent = `🔴 Recording... ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function disableRecordingControls() {
+            recordBtn.disabled = true;
+            recordBtn.className = 'btn btn-remove flex-1 opacity-50 cursor-not-allowed';
+        }
+
+        function enableRecordingControls() {
+            recordBtn.disabled = false;
+            recordBtn.className = 'btn btn-record flex-1';
+        }
+
+        function disableFileControls() {
+            uploadBtn.disabled = true;
+            uploadBtn.className = 'btn btn-upload flex-1 opacity-50 cursor-not-allowed';
+        }
+
+        function enableFileControls() {
+            uploadBtn.disabled = false;
+            uploadBtn.className = 'btn btn-upload flex-1';
+        }
+
+        function removeFile() {
+            if (audioFilePath && audioSource === 'file') {
+                audioFilePath = null;
+                audioSource = null;
+                fileLabel.textContent = 'No file selected';
+                fileLabel.className = 'text-[#b0b0c0] italic';
+                removeFileBtn.classList.add('hidden');
+                enableRecordingControls();
+                checkReadyToAnalyze();
+            }
+        }
+
+        function clearRecording() {
+            if (audioSource === 'recording' && audioFilePath) {
+                fs.unlink(audioFilePath).catch(() => {});
+                audioFilePath = null;
+                audioSource = null;
+                recordingLabel.textContent = 'Ready to record';
+                recordingLabel.className = 'text-[#b0b0c0] italic';
+                clearRecordingBtn.classList.add('hidden');
+                enableFileControls();
+                checkReadyToAnalyze();
+            }
+        }
+
+        function checkReadyToAnalyze() {
+            const hasAudio = !!audioFilePath;
+            const hasClinicalSheet = clinicalSheetInput.value !== '';
+            analyzeBtn.disabled = !(hasAudio && hasClinicalSheet);
+        }
+
+        clinicalSheetInput.addEventListener('change', checkReadyToAnalyze);
+        languageInput.addEventListener('change', checkReadyToAnalyze);
+        doctorInput.addEventListener('input', checkReadyToAnalyze);
+
+        // Analyze Audio
+        analyzeBtn.addEventListener('click', async () => {
+            if (!audioFilePath) {
+                alert('No audio file selected or recorded.');
+                return;
+            }
+            if (!clinicalSheetInput.value) {
+                alert('Please select a clinical sheet.');
+                return;
+            }
+
+            analyzeBtn.textContent = '🔄 Processing...';
+            analyzeBtn.disabled = true;
+            progressBar.classList.remove('hidden');
+
+            const formData = new FormData();
+            const fileData = audioFilePath instanceof File ? audioFilePath : new Blob([await fs.readFile(audioFilePath)]);
+            formData.append('audio', fileData, audioFilePath instanceof File ? audioFilePath.name : path.basename(audioFilePath));
+            formData.append('clinicalSheet', clinicalSheetInput.value);
+            formData.append('language', languageInput.value);
+            formData.append('isConversation', conversationalInput.checked ? 'on' : '');
+            formData.append('doctorName', doctorInput.value);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    resultId = result.saved_to_db;
+                    displayResults(result);
+                    feedbackBtn.disabled = false;
+                    alert('✅ Analysis completed successfully!');
+                } else {
+                    alert(`Server Error: ${await response.text()}`);
+                }
+            } catch (error) {
+                alert(`Request failed: ${error.message}`);
+            } finally {
+                resetAnalyzeButton();
+            }
+        });
+
+        function resetAnalyzeButton() {
+            analyzeBtn.textContent = '🚀 Analyze Audio';
+            analyzeBtn.disabled = false;
+            progressBar.classList.add('hidden');
+        }
+
+        function displayResults(result) {
+            rawText.value = result.raw_text || '';
+            refinedText.value = result.refine_text || '';
+            translationText.value = result.translation_text || '';
+            reasoningText.value = result.reasoning || '';
+
+            jsonTableBody.innerHTML = '';
+            const jsonData = result.json_data || {};
+            for (const [key, value] of Object.entries(jsonData)) {
+                const row = document.createElement('tr');
+                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const formattedValue = Array.isArray(value) ? value.join(', ') : value;
+                row.innerHTML = `<td>${formattedKey}</td><td>${formattedValue}</td>`;
+                jsonTableBody.appendChild(row);
+            }
+        }
+
+        // Send Feedback
+        feedbackBtn.addEventListener('click', async () => {
+            if (!resultId) {
+                alert('No result available. Please analyze audio first.');
+                return;
+            }
+
+            const feedback = feedbackInput.value.trim();
+            if (!feedback) {
+                alert('Please enter valid feedback.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/save-feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ result_id: resultId, feedback })
+                });
+                if (response.ok) {
+                    alert('✅ Feedback submitted successfully!');
+                    feedbackInput.value = '';
+                } else {
+                    alert(`Feedback error: ${await response.text()}`);
+                }
+            } catch (error) {
+                alert(`Feedback failed: ${error.message}`);
+            }
+        });
+
+        // Window Close Event
+        window.addEventListener('beforeunload', async (event) => {
+            if (recording) {
+                const confirmed = await ipcRenderer.invoke('confirm-exit', 'Recording is in progress. Are you sure you want to exit?');
+                if (!confirmed) {
+                    event.preventDefault();
+                    event.returnValue = '';
+                } else if (audioFilePath && audioSource === 'recording') {
+                    await fs.unlink(audioFilePath).catch(() => {});
+                }
+            } else if (audioFilePath && audioSource === 'recording') {
+                await fs.unlink(audioFilePath).catch(() => {});
+            }
+        });
+    </script>
+</body>
+</html>

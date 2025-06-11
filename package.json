@@ -1,0 +1,14 @@
+{
+    "name": "medical-audio-analyzer",
+    "version": "1.1.0",
+    "description": "Medical Audio Analyzer Electron App",
+    "main": "src/view/main.js",
+    "scripts": {
+        "start": "electron ."
+    },
+    "author": "Medical AI Solutions",
+    "license": "MIT",
+    "devDependencies": {
+        "electron": "^36.4.0"
+    }
+}
