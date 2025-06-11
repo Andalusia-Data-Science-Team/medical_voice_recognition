@@ -1,89 +1,198 @@
-🩺 Medical Voice Assistant Setup Guide
-A voice-enabled assistant for medical applications, powered by Fireworks AI.
-🚀 Setup Instructions
-Follow these steps to set up and run the Medical Voice Assistant on your machine.
-Prerequisites
+# Medical Voice Assistant 🩺
 
-Python 3.8 or higher
-Node.js (for GUI client)
-PortAudio (for audio processing)
-Fireworks AI API key
+A voice-enabled medical assistant application powered by Fireworks AI, designed to provide intelligent medical information and support through natural voice interactions.
 
-Step 1: 🔐 Configure API Key
+## Features
 
-Create a .env file in the project root directory.
-Add your Fireworks AI API key:
+- **Voice Recognition**: Real-time speech-to-text processing
+- **AI-Powered Responses**: Medical knowledge powered by Fireworks AI
+- **Cross-Platform Support**: Compatible with Windows, macOS, and Linux
+- **GUI Interface**: User-friendly desktop application
+- **Medical Focus**: Specialized for healthcare and medical queries
 
+## Prerequisites
+
+Before you begin, ensure you have the following installed on your system:
+
+- **Python 3.8+** - [Download Python](https://www.python.org/downloads/)
+- **Node.js** - [Download Node.js](https://nodejs.org/)
+- **PortAudio** - Required for audio processing
+- **Fireworks AI API Key** - [Get your API key](https://fireworks.ai/)
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/medical-voice-assistant.git
+cd medical-voice-assistant
+```
+
+### 2. Environment Configuration
+
+Create a `.env` file in the project root directory and add your Fireworks AI API key:
+
+```env
 FIREWORKS_API_KEY=your_api_key_here
+```
 
-Step 2: 🐍 Set Up Python Virtual Environment
+### 3. Python Environment Setup
 
-Create a virtual environment:
+Create and activate a virtual environment:
 
+**macOS/Linux:**
+```bash
 python -m venv venv
+source venv/bin/activate
+```
 
+**Windows:**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
 
-Activate the virtual environment:
-macOS/Linux:source venv/bin/activate
+### 4. Install PyAudio
 
+PyAudio installation varies by operating system:
 
-Windows:venv\Scripts\activate
-
-
-
-
-
-Step 3: 🎙️ Install PyAudio
-PyAudio is required for audio processing. Install it based on your operating system:
-
-macOS:
+**macOS:**
+```bash
 brew install portaudio
 pip install pyaudio
+```
 
-
-Linux (Ubuntu/Debian):
+**Linux (Ubuntu/Debian):**
+```bash
 sudo apt-get update
 sudo apt-get install portaudio19-dev python3-pyaudio
+pip install pyaudio
+```
 
+**Windows:**
+```bash
+# Download the appropriate PyAudio wheel from https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio
+# Example for Python 3.11, 64-bit:
+pip install PyAudio-0.2.11-cp311-cp311-win_amd64.whl
+```
 
-Windows:
+### 5. Install Project Dependencies
 
-Download the appropriate PyAudio wheel file (e.g., PyAudio-0.2.11-cp311-cp311-win_amd64.whl) from a trusted source.
-Install it:pip install PyAudio-0.2.11-cp311-cp311-win_amd64.whl
-
-
-
-
-
-Step 4: 📦 Install Project Dependencies
-With the virtual environment activated, install the project in editable mode:
+```bash
 pip install -e .
+```
 
-Step 5: 🖥️ Run the Server
-In a terminal with the virtual environment activated, start the server:
-python -m src.controller.app
+### 6. Client Dependencies (GUI)
 
-Step 6: 💻 Run the Client (GUI-Enabled Machines Only)
-The client requires a GUI-enabled machine (Desktop Linux, macOS, or Windows).
+Navigate to the client directory and install Node.js dependencies:
 
-Navigate to the client directory (if applicable):
-
+```bash
 cd client
-
-
-Install Node.js dependencies:
-
 npm install
+```
 
+## Usage
 
-Start the client:
+### Starting the Server
 
+1. Ensure your virtual environment is activated
+2. Start the backend server:
+
+```bash
+python -m src.controller.app
+```
+
+### Starting the Client (GUI)
+
+1. Open a new terminal window
+2. Navigate to the client directory:
+
+```bash
+cd client
+```
+
+3. Start the GUI application:
+
+```bash
 npm start
+```
 
-Notes
+## Project Structure
 
-Ensure your system has a working microphone for voice input.
-The server and client must be run in separate terminals.
-For issues with PyAudio installation, verify PortAudio is correctly installed.
-Refer to Fireworks AI documentation for API key usage and limits.
+```
+medical-voice-assistant/
+├── src/
+│   ├── controller/
+│   │   └── app.py
+│   └── ...
+├── client/
+│   ├── package.json
+│   └── ...
+├── .env
+├── requirements.txt
+├── setup.py
+└── README.md
+```
 
+## Troubleshooting
+
+### Common Issues
+
+**PyAudio Installation Errors:**
+- Ensure PortAudio is properly installed on your system
+- On Windows, use pre-compiled wheel files
+- On macOS, install via Homebrew first
+
+**API Key Issues:**
+- Verify your Fireworks AI API key is correct
+- Check that the `.env` file is in the project root
+- Ensure the API key has proper permissions
+
+**Audio Device Issues:**
+- Verify your microphone is working and accessible
+- Check system audio permissions
+- Test with other audio applications
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `FIREWORKS_API_KEY` | Your Fireworks AI API key | Yes |
+
+### Audio Settings
+
+The application uses your system's default microphone. Ensure:
+- Microphone permissions are granted
+- Audio drivers are up to date
+- No other applications are blocking microphone access
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support and questions:
+- Create an issue on GitHub
+- Check the [Fireworks AI documentation](https://docs.fireworks.ai/)
+- Review the troubleshooting section above
+
+## Acknowledgments
+
+- [Fireworks AI](https://fireworks.ai/) for providing the AI capabilities
+- [PyAudio](https://pypi.org/project/PyAudio/) for audio processing
+- Contributors and maintainers
+
+---
+
+**Note**: This application is designed for educational and informational purposes. Always consult with qualified healthcare professionals for medical advice.
