@@ -124,13 +124,25 @@ medical-voice-assistant/
 ├── src/
 │   ├── controller/
 │   │   └── app.py
-│   └── ...
-├── client/
-│   ├── package.json
-│   └── ...
+│   └── model/
+│   │   └── audio_preprocessing.py
+│   │   └── file_service.py
+│   │   └── speech_service.py
+│   │   └── input_validator.py
+│   │   └── llm_service.py
+│   │   └── pipeline.py
+│   └── view/
+│   │   └── index.html
+│   │   └── main.js
+│   └── core/
+│   │   └── database.py
+│   │   └── config.py
 ├── .env
-├── requirements.txt
+├── setup.cfg
+├── pyproject.toml
 ├── setup.py
+├── data_latest.parquet
+├── .gitignore
 └── README.md
 ```
 
