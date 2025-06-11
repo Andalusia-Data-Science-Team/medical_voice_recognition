@@ -14,7 +14,7 @@ A voice-enabled medical assistant application powered by Fireworks AI, designed 
 
 Before you begin, ensure you have the following installed on your system:
 
-- **Python 3.8+** - [Download Python](https://www.python.org/downloads/)
+- **Python 3.11+** - [Download Python](https://www.python.org/downloads/)
 - **Node.js** - [Download Node.js](https://nodejs.org/)
 - **PortAudio** - Required for audio processing
 - **Fireworks AI API Key** - [Get your API key](https://fireworks.ai/)
