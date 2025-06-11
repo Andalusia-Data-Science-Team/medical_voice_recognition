@@ -1,64 +1,89 @@
-# 🩺 Medical Voice Assistant
-
-A voice-enabled assistant tailored for medical applications, powered by advanced AI models from Fireworks AI.
-
----
-
-## 🚀 Getting Started
-
+🩺 Medical Voice Assistant Setup Guide
+A voice-enabled assistant for medical applications, powered by Fireworks AI.
+🚀 Setup Instructions
 Follow these steps to set up and run the Medical Voice Assistant on your machine.
+Prerequisites
 
----
+Python 3.8 or higher
+Node.js (for GUI client)
+PortAudio (for audio processing)
+Fireworks AI API key
 
-### 1. 🔐 Set Up API Key
+Step 1: 🔐 Configure API Key
 
-Create a `.env` file in the root directory and add your Fireworks AI API key:
+Create a .env file in the project root directory.
+Add your Fireworks AI API key:
 
+FIREWORKS_API_KEY=your_api_key_here
 
----
+Step 2: 🐍 Set Up Python Virtual Environment
 
-### 2. 🐍 Create and Activate Virtual Environment
+Create a virtual environment:
 
-Create a Python virtual environment and activate it:
-
-```bash
-# Create venv
 python -m venv venv
 
-# Activate (choose your OS)
-# macOS/Linux:
-source venv/bin/activate
 
-# Windows:
-venv\Scripts\activate
+Activate the virtual environment:
+macOS/Linux:source venv/bin/activate
 
-3. 🎙️ Install PyAudio (OS-specific instructions)
-Ensure PortAudio/PyAudio is installed, as it is required for audio processing.
+
+Windows:venv\Scripts\activate
+
+
+
+
+
+Step 3: 🎙️ Install PyAudio
+PyAudio is required for audio processing. Install it based on your operating system:
 
 macOS:
 brew install portaudio
+pip install pyaudio
+
 
 Linux (Ubuntu/Debian):
 sudo apt-get update
 sudo apt-get install portaudio19-dev python3-pyaudio
 
+
 Windows:
-Download and install the appropriate .whl file for PyAudio:
-pip install PyAudio‑0.2.11‑cp311‑cp311‑win_amd64.whl
+
+Download the appropriate PyAudio wheel file (e.g., PyAudio-0.2.11-cp311-cp311-win_amd64.whl) from a trusted source.
+Install it:pip install PyAudio-0.2.11-cp311-cp311-win_amd64.whl
 
 
-4. 📦 Install Project Dependencies (Editable Mode)
-Run the following command from the root directory:
+
+
+
+Step 4: 📦 Install Project Dependencies
+With the virtual environment activated, install the project in editable mode:
 pip install -e .
 
-
-5. 🖥️ Run the Server
-In a new terminal (with the virtual environment activated), start the server:
+Step 5: 🖥️ Run the Server
+In a terminal with the virtual environment activated, start the server:
 python -m src.controller.app
 
-6. 💻 Run the Client (GUI Machine Only)
-Requires a GUI-enabled machine (Desktop Linux, macOS, or Windows)
+Step 6: 💻 Run the Client (GUI-Enabled Machines Only)
+The client requires a GUI-enabled machine (Desktop Linux, macOS, or Windows).
 
-In a separate terminal, navigate to the client folder (if applicable), and run:
+Navigate to the client directory (if applicable):
+
+cd client
+
+
+Install Node.js dependencies:
+
 npm install
+
+
+Start the client:
+
 npm start
+
+Notes
+
+Ensure your system has a working microphone for voice input.
+The server and client must be run in separate terminals.
+For issues with PyAudio installation, verify PortAudio is correctly installed.
+Refer to Fireworks AI documentation for API key usage and limits.
+
