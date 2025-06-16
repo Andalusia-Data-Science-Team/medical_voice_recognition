@@ -14,19 +14,9 @@ from .utils.prompt import (get_refine_arabic_prompt_llama,
                             get_translation_prompt_llama_conv,
                             get_translation_prompt_llama)
 
-from pydantic import ValidationError
-import json
-from pydantic import BaseModel, Field
-from typing import List, Optional
 # Configure logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-class ExtractedFeatures(BaseModel):
-    entities: List[str] = Field(description="List of extracted entities")
-    sentiment: str = Field(description="Sentiment of the text (positive, negative, neutral)")
-    keywords: List[str] = Field(description="Key keywords extracted from the text")
-    summary: Optional[str] = Field(default=None, description="Optional summary of the text")
     
 class LLMService:
     """Service for LLM processing."""
@@ -157,4 +147,4 @@ class LLMService:
     
     def extract_features(translated_text, api_key, model, conversational_mode=False):
         """Extract features from translated text with LLM."""
-        return LLMService.process_text(translated_text, api_key, model, "extract", conversational_mode, pydantic_model=ExtractedFeatures)
+        return LLMService.process_text(translated_text, api_key, model, "extract", conversational_mode)

@@ -41,7 +41,7 @@ class SpeechService:
             # Apply preprocessing if requested
             if preprocess:
                 from .audio_preprocessing import AudioPreprocessingService
-                processed_file_path = AudioPreprocessingService.preprocess(audio_file_path)
+                processed_file_path = AudioPreprocessingService.preprocess_audio(audio_file_path)
                 temp_file_created = processed_file_path != audio_file_path
                 logger.info(f"Audio preprocessing applied: {audio_file_path} → {processed_file_path}")
             

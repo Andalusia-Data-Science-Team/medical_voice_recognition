@@ -1,7 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form, Request
-from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.exceptions import HTTPException
 import time
 import pandas as pd
 import logging
@@ -9,20 +8,24 @@ from typing import Optional
 import os
 import uvicorn
 import json
-from datetime import datetime
+import asyncio
 import sys
 
 # Import your services
 from ..core.config import Config
-from ..model.pipeline import DataPipeline
 from ..core.database import DatabaseService
+from ..model.speech_service import SpeechService
+from ..model.input_validator import MedicalValidator
+from ..model.refine_text import RefineText
+from ..model.translation import Translate
+from ..model.extract_features import ExtractFeature
 
 # Initialize logger
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Initialize FastAPI app
 app = FastAPI(title="Audio Processing API")
-
 
 def load_forms_dataframe():
     try:
@@ -52,17 +55,16 @@ async def get_forms():
     form_names = df['name'].dropna().unique().tolist()
     return JSONResponse(form_names)
 
-# Modify the existing upload endpoint to not require feedback initially
 @app.post("/upload")
 async def upload(
     audio: UploadFile = File(...),
     language: str = Form("en"),
     model: str = Form("deepseek"),
     isConversation: Optional[str] = Form(None),
-    doctorName: Optional[str] = Form(None),  # Keep doctor name field
-    feedback: Optional[str] = Form(None)     # Make feedback optional (it will be populated later)
+    doctorName: Optional[str] = Form(None),
+    feedback: Optional[str] = Form(None)
 ):
-    """Handle file uploads and processing."""
+    """Handle file uploads and stream processing results."""
     logger.info("Received upload request")
     
     # Check conversational mode
@@ -77,71 +79,113 @@ async def upload(
     
     # Save the uploaded file
     try:
-        # Create a temporary file object
         contents = await audio.read()
         file_path = os.path.join(Config.UPLOAD_FOLDER, audio.filename)
-        
-        # Ensure upload directory exists
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        # Write file
         with open(file_path, "wb") as f:
             f.write(contents)
         logger.info(f"File saved to {file_path}")
     except Exception as e:
         logger.error(f"Error saving file: {str(e)}", exc_info=True)
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
     
-    try:
-        logger.info("Starting batch processing mode")
-        
-        # Process the uploaded file
-        response_data = DataPipeline.process_batch(file_path, language, model, conversational_mode)
-        
-        # Save results to database
-        json_data_str = json.dumps(response_data["json_data"]) if isinstance(response_data["json_data"], (dict, list)) else response_data["json_data"]
-        
-        # Store in database with new fields (feedback is initially empty or with minimal value)
-        result_id = DatabaseService.save_audio_result(
-            filename=audio.filename,
-            language=language,
-            model=model,
-            is_conversation=conversational_mode,
-            raw_text=response_data["raw_text"],
-            arabic_text=response_data["arabic_text"],
-            translation_text=response_data["translation_text"],
-            json_data=json_data_str,
-            reasoning=response_data["reasoning"],
-            preprocessing_time=response_data["preprocessing_time"],
-            voice_processing_time=response_data["voice_processing_time"],
-            llm_processing_time=3,
-            doctor_name=doctorName,
-            feedback=""  # Initially empty, will be populated via the save-feedback endpoint
-        )
-        
-        logger.info(f"Saved processing result to database with ID: {result_id}")
-        
-        # Return the response
-        return {
-            "raw_text": response_data["raw_text"],
-            "refine_text": response_data["arabic_text"],
-            "translation_text": response_data["translation_text"],
-            "json_data": response_data["json_data"],
-            "reasoning": response_data["reasoning"],
-            "preprocessing_time": response_data["preprocessing_time"],
-            "voice_processing_time": response_data["voice_processing_time"],
-            "doctor_name": doctorName,
-            "saved_to_db": result_id  # Return the actual ID so we can use it for saving feedback
-        }
-    except Exception as e:
-        logger.error(f"Error in batch processing: {str(e)}", exc_info=True)
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-    
+    async def stream_results():
+        """Stream processing results as they become available."""
+        try:
+            # Step 1: Transcribe audio
+            logger.info("Starting transcription")
+            try:
+                transcripted_text = SpeechService.transcribe_audio(file_path, Config.FIREWORKS_API_KEY, language)
+                if not transcripted_text:
+                    raise ValueError("Transcription returned empty text")
+                yield json.dumps({"step": "transcription", "data": transcripted_text}) + "\n"
+            except Exception as e:
+                logger.error(f"Transcription error: {str(e)}", exc_info=True)
+                yield json.dumps({"step": "error", "data": f"Transcription failed: {str(e)}"}) + "\n"
+                return
+            await asyncio.sleep(0.1)
+
+            # Step 2: Refine text
+            logger.info("Starting text refinement")
+            try:
+                refined_text = RefineText.refining_transcription(transcripted_text, conversational_mode, model="deepseek", language=language)
+                yield json.dumps({"step": "refinement", "data": refined_text}) + "\n"
+            except Exception as e:
+                logger.error(f"Refinement error: {str(e)}", exc_info=True)
+                yield json.dumps({"step": "error", "data": f"Refinement failed: {str(e)}"}) + "\n"
+                return
+            await asyncio.sleep(0.1)
+
+            # Step 3: Translate if needed
+            logger.info("Starting translation")
+            try:
+                if language == "ar":
+                    end_text = Translate.translate(refined_text, conversational_mode, model="deepseek")
+                else:
+                    end_text = refined_text
+                yield json.dumps({"step": "translation", "data": end_text}) + "\n"
+            except Exception as e:
+                logger.error(f"Translation error: {str(e)}", exc_info=True)
+                yield json.dumps({"step": "error", "data": f"Translation failed: {str(e)}"}) + "\n"
+                return
+            await asyncio.sleep(0.1)
+
+            # Step 4: Extract features
+            logger.info("Starting feature extraction")
+            try:
+                json_data, reasoning = ExtractFeature.extract(end_text, conversational_mode)
+                yield json.dumps({"step": "feature_extraction", "data": {"json_data": json_data, "reasoning": reasoning}}) + "\n"
+            except Exception as e:
+                logger.error(f"Feature extraction error: {str(e)}", exc_info=True)
+                yield json.dumps({"step": "error", "data": f"Feature extraction failed: {str(e)}"}) + "\n"
+                return
+            await asyncio.sleep(0.1)
+
+            # Step 5: Save to database
+            logger.info("Saving to database")
+            try:
+                json_data_str = json.dumps(json_data) if isinstance(json_data, (dict, list)) else json_data
+                result_id = DatabaseService.save_audio_result(
+                    filename=audio.filename,
+                    language=language,
+                    model=model,
+                    is_conversation=conversational_mode,
+                    raw_text=transcripted_text,
+                    arabic_text=refined_text,
+                    translation_text=end_text,
+                    json_data=json_data_str,
+                    reasoning=reasoning,
+                    preprocessing_time=3,
+                    voice_processing_time=3,
+                    llm_processing_time=3,
+                    doctor_name=doctorName,
+                    feedback=""
+                )
+                logger.info(f"Saved processing result to database with ID: {result_id}")
+                yield json.dumps({"step": "database_save", "data": {"result_id": result_id}}) + "\n"
+            except Exception as e:
+                logger.error(f"Database save error: {str(e)}", exc_info=True)
+                yield json.dumps({"step": "error", "data": f"Database save failed: {str(e)}"}) + "\n"
+                return
+
+        except Exception as e:
+            logger.error(f"Unexpected error in stream processing: {str(e)}", exc_info=True)
+            yield json.dumps({"step": "error", "data": f"Unexpected error: {str(e)}"}) + "\n"
+        finally:
+            # Clean up uploaded file
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.info(f"Cleaned up file: {file_path}")
+            except Exception as e:
+                logger.error(f"Error cleaning up file: {str(e)}")
+
+    return StreamingResponse(stream_results(), media_type="text/event-stream")
+
 @app.post("/save-feedback")
 async def save_feedback(request: Request):
     """Save feedback for an existing result."""
     try:
-        # Get JSON data from request
         data = await request.json()
         result_id = data.get("result_id")
         feedback = data.get("feedback")
@@ -149,7 +193,6 @@ async def save_feedback(request: Request):
         if not result_id:
             return JSONResponse(content={"error": "Missing result ID"}, status_code=400)
         
-        # Update the feedback in the database
         success = DatabaseService.update_feedback(result_id, feedback)
         
         if success:
@@ -161,19 +204,6 @@ async def save_feedback(request: Request):
             
     except Exception as e:
         logger.error(f"Error saving feedback: {str(e)}", exc_info=True)
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    """Display dashboard with stored results."""
-    try:
-        results = DatabaseService.get_audio_results(limit=50)
-        return templates.TemplateResponse("dashboard.html", {
-            "request": request,
-            "results": results
-        })
-    except Exception as e:
-        logger.error(f"Error displaying dashboard: {str(e)}", exc_info=True)
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.get("/results")
@@ -189,8 +219,7 @@ async def get_results(limit: int = 100):
 if __name__ == "__main__":
     logger.info(f"Starting FastAPI server on port {8587}")
     
-    # Add project root to Python path
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sys.path.insert(0, project_root)
     
-    uvicorn.run("src.controller.app:app", host="0.0.0.0", port=8587, reload=Config.DEBUG)
+    uvicorn.run("src.controller.test:app", host="0.0.0.0", port=8587, reload=Config.DEBUG)
