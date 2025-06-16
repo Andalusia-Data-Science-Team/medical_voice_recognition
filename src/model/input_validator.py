@@ -2,7 +2,6 @@ from .llm_service import LLMService
 import logging
 from ..core.config import Config
 import re
-from typing import List, Dict
 
 # Configure logger
 logging.basicConfig(level=logging.INFO)
@@ -20,16 +19,6 @@ Text to analyze: {text}
 Respond with only "MEDICAL" or "NON_MEDICAL" followed by a confidence score (0-100).
 Response format: MEDICAL|95 or NON_MEDICAL|87
 """
-    
-    MEDICAL_KEYWORDS = {
-            'symptoms': ['pain', 'fever', 'headache', 'nausea', 'fatigue', 'cough', 'shortness of breath', 'dizziness', 'chest pain', 'abdominal pain'],
-            'body_parts': ['heart', 'lung', 'liver', 'kidney', 'brain', 'chest', 'abdomen', 'throat', 'stomach', 'back'],
-            'medical_terms': ['diagnosis', 'treatment', 'medication', 'prescription', 'surgery', 'therapy', 'examination', 'assessment'],
-            'measurements': ['blood pressure', 'temperature', 'pulse', 'weight', 'height', 'bpm', 'mmHg', 'celsius', 'fahrenheit'],
-            'procedures': ['x-ray', 'mri', 'ct scan', 'ultrasound', 'blood test', 'ecg', 'ekg', 'biopsy'],
-            'medications': ['tablet', 'capsule', 'injection', 'dose', 'mg', 'ml', 'antibiotic', 'analgesic'],
-            'conditions': ['diabetes', 'hypertension', 'infection', 'inflammation', 'fracture', 'allergy']
-        }
 
     @staticmethod
     def validate_medical_content(text: str) -> dict:
@@ -81,77 +70,3 @@ Response format: MEDICAL|95 or NON_MEDICAL|87
             
         except Exception as e:
             logger.error(f"LLM validation failed: {str(e)}")
-            # Fallback to keyword-based validation
-            return MedicalValidator._fallback_validation(text)
-
-    @staticmethod
-    def _fallback_validation(text: str) -> dict:
-        """Fallback keyword-based validation when LLM fails"""
-        try:
-            logger.info("Using fallback keyword-based validation")
-            
-            text_lower = text.lower()
-            total_score = 0
-            matched_categories = 0
-            matched_keywords = []
-            
-            for category, keywords in MedicalValidator.MEDICAL_KEYWORDS.items():
-                category_matches = 0
-                for keyword in keywords:
-                    if keyword.lower() in text_lower:
-                        category_matches += 1
-                        matched_keywords.append(keyword)
-                
-                if category_matches > 0:
-                    matched_categories += 1
-                    # Weight categories differently
-                    if category in ['symptoms', 'medical_terms', 'procedures']:
-                        total_score += category_matches * 15  # Higher weight
-                    else:
-                        total_score += category_matches * 10
-            
-            # Calculate confidence based on matches
-            confidence = min(total_score, 95)  # Cap at 95%
-            is_medical = confidence >= 30  # Threshold for medical content
-            
-            logger.info(f"Fallback validation - Confidence: {confidence}%, Medical: {is_medical}")
-            logger.info(f"Matched keywords: {matched_keywords}")
-            
-            return {
-                "is_medical": is_medical,
-                "confidence": confidence,
-                "classification": "MEDICAL" if is_medical else "NON_MEDICAL",
-                "method": "fallback_keywords",
-                "matched_keywords": matched_keywords,
-                "matched_categories": matched_categories
-            }
-            
-        except Exception as e:
-            logger.error(f"Fallback validation failed: {str(e)}")
-            # Ultimate fallback - assume it's medical to avoid blocking valid content
-            return {
-                "is_medical": True,
-                "confidence": 50,
-                "classification": "MEDICAL",
-                "method": "emergency_fallback",
-                "error": str(e)
-            }
-
-    def _extract_confidence_score(self, text: str) -> int:
-        """Extract confidence score from various response formats"""
-        # Look for patterns like "95", "95%", "confidence: 95", etc.
-        patterns = [
-            r'(\d+)%',
-            r'confidence[:\s]+(\d+)',
-            r'score[:\s]+(\d+)',
-            r'\|(\d+)',
-            r'(\d+)'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                score = int(match.group(1))
-                return min(max(score, 0), 100)  # Ensure score is between 0-100
-        
-        return 50  # Default confidence if no score found

@@ -86,8 +86,32 @@ pip install -e .
 
 Navigate to the client directory and install Node.js dependencies:
 
+**Windows (if Node.js not installed):**
+
+First, download and install the latest Node.js version:
+
+1. **Download Node.js**
+   In PowerShell, run:
+   ```powershell
+   Start-Process "https://nodejs.org/en/download" -Wait
+   ```
+   This opens the official Node.js site.
+   - Click on the **"LTS"** version (e.g., "18.x.x LTS") for Windows.
+   - Download the `.msi` installer.
+
+2. **Run the Installer**
+   - Double-click the downloaded `.msi` file.
+   - Follow the installer:
+     - ✅ Select "Add to PATH" (default)
+     - ✅ Accept all defaults unless you know otherwise
+
+3. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+**macOS/Linux:**
 ```bash
-cd client
 npm install
 ```
 
@@ -105,13 +129,8 @@ python -m src.controller.app
 ### Starting the Client (GUI)
 
 1. Open a new terminal window
-2. Navigate to the client directory:
 
-```bash
-cd client
-```
-
-3. Start the GUI application:
+2. Start the GUI application:
 
 ```bash
 npm start
@@ -164,6 +183,11 @@ medical-voice-assistant/
 - Verify your microphone is working and accessible
 - Check system audio permissions
 - Test with other audio applications
+
+**Node.js Installation Issues (Windows):**
+- Restart your terminal/PowerShell after installation
+- Verify installation by running `node --version` and `npm --version`
+- If PATH issues occur, manually add Node.js to your system PATH
 
 ## Configuration
 
