@@ -277,3 +277,6 @@ RELEASES
 *.snap
 *.AppImage
 
+tests/
+app_data.db
+

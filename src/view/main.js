@@ -13,7 +13,7 @@ function createWindow() {
         }
     });
 
-    win.loadFile('src/view/index_stream.html');
+    win.loadFile('src/view/index.html');
     win.setMenu(null);
 }
 

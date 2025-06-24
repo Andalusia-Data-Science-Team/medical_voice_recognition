@@ -82,39 +82,42 @@ def get_extraction_prompt_deepseek(translated_text):
 
 def get_extraction_prompt_llama(translated_text):
     return f"""
-    Extract patient information into JSON format and provide brief analysis.
-    Return only these two sections:
+You are a medical expert Given the following medical text, extract relevant medical features and provide reasoning for the extraction. Return a JSON object with two fields:
+- "json_data": A dictionary containing the following medical features:
+  - "chief_complaint": The primary reason for the visit (string) you will get a diagnose of a patient so you must output a chief complain.
+  - "icd10_codes": A list of ICD-10 codes with descriptions (list of strings) RECOMMEND RELATED ICD10 codes as most as you can.
+  - "history_of_illness": Details of the patient's medical history (string).
+  - "current_medication": Current medications prescribed or taken (string).
+  - "imaging_results": Results from imaging studies (string).
+  - "plan": Treatment or management plan (string).
+  - "assessment": Clinical assessment or diagnosis (string).
+  - "follow_up": Follow-up instructions (string).
+- "reasoning": A string explaining the rationale behind the extracted features.
 
-    # SECTION 1: PATIENT DATA (JSON FORMAT)
-    ```json
-    {{
-    "chief_complaint": "",
+Leave fields empty ("" for strings, [] for lists) if no relevant information is found in the text.
+
+Text: {translated_text}
+
+Example output:
+{{
+  "json_data": {{
+    "chief_complaint": "Persistent cough and fever",
     "icd10_codes": [
-        "Code1 - Description",
-        "Code2 - Description",
-        "Code3 - Description"
+      "J11.1 - Influenza with respiratory manifestations",
+      "R05 - Cough"
     ],
-    "history_of_illness": "",
-    "current_medication": "",
-    "imaging_results": "",
-    "plan": "",
-    "assessment": "",
-    "follow_up": ""
-    }}
-    ```
+    "history_of_illness": "Patient has a history of asthma and seasonal allergies.",
+    "current_medication": "Albuterol inhaler, Oseltamivir 75mg twice daily",
+    "imaging_results": "Chest X-ray shows no consolidation.",
+    "plan": "Continue Oseltamivir for 5 days, use Albuterol as needed.",
+    "assessment": "Influenza with acute respiratory symptoms",
+    "follow_up": "Return in 7 days or sooner if symptoms worsen."
+  }},
+  "reasoning": "The text describes a patient with cough and fever, leading to a diagnosis of influenza. ICD-10 codes J11.1 and R05 are assigned based on the symptoms. The history of asthma and allergies is noted. Current medications include Oseltamivir for influenza and Albuterol for asthma. Chest X-ray is normal, supporting a viral etiology. The plan includes antiviral treatment and symptom management, with a follow-up in 7 days."
+}}
+"""
 
-    # SECTION 2: ANALYSIS NOTES
-    Brief justification for extracted data and ICD10 codes.
 
-    IMPORTANT:
-    - Include all relevant ICD10 codes that apply to the patient's condition
-    - List both primary and secondary diagnosis codes
-    - Provide specific, detailed code descriptions for each ICD10 code
-    - Ensure codes accurately match the medical conditions described in the text
-
-    TEXT TO ANALYZE:
-    \"\"\"{translated_text}\"\"\"
-    """
 def get_refine_english_prompt_deepseek(translated_text):
     return f"""
     Correct the grammar and structure of this English medical text.

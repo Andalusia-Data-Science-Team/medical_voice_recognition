@@ -13,7 +13,8 @@ class Config:
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     FIREWORKS_API_KEY = os.getenv("FIREWORKS_API_KEY")
-
+    DATABASE_PATH = "app_data.db"
+    
     # Create upload folder if it doesn't exist
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)

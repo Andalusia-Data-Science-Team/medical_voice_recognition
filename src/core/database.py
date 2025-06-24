@@ -2,13 +2,14 @@ import sqlite3
 import logging
 import os
 from datetime import datetime
+from ..core.config import Config
 
 logger = logging.getLogger(__name__)
 
 class DatabaseService:
     """Service for database operations"""
     
-    DB_PATH = "app_data.db"
+    DB_PATH = Config.DATABASE_PATH
     
     @classmethod
     def initialize_db(cls):
@@ -17,10 +18,21 @@ class DatabaseService:
             conn = sqlite3.connect(cls.DB_PATH)
             cursor = conn.cursor()
             
-            # Create table for audio processing results
+            # Create users table
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                hashed_password TEXT NOT NULL,
+                insertion_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            ''')
+            
+            # Create audio_results table (add user_id)
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS audio_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
                 filename TEXT NOT NULL,
                 language TEXT NOT NULL,
                 model TEXT NOT NULL,
@@ -35,7 +47,8 @@ class DatabaseService:
                 llm_processing_time REAL,
                 doctor_name TEXT,
                 feedback TEXT,
-                insertion_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                insertion_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
             )
             ''')
             
@@ -50,21 +63,66 @@ class DatabaseService:
                 conn.close()
 
     @classmethod
+    def register_user(cls, username: str, hashed_password: str) -> int:
+        """Register a new user and return their ID."""
+        try:
+            conn = sqlite3.connect(cls.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (username, hashed_password) VALUES (?, ?)",
+                (username, hashed_password)
+            )
+            conn.commit()
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            user_id = cursor.fetchone()[0]
+            logger.info(f"User registered: {username}")
+            return user_id
+        except sqlite3.IntegrityError:
+            logger.error(f"User registration failed: Username already exists")
+            raise Exception("Username already exists")
+        except sqlite3.Error as e:
+            logger.error(f"User registration failed: {str(e)}")
+            raise Exception(f"User registration failed: {str(e)}")
+        finally:
+            if conn:
+                conn.close()
+
+    @classmethod
+    def verify_user(cls, username: str) -> dict:
+        """Verify user exists and return user data."""
+        try:
+            conn = sqlite3.connect(cls.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, username, hashed_password FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+            if user:
+                return {"id": user[0], "username": user[1], "hashed_password": user[2]}
+            logger.warning(f"User not found: {username}")
+            return None
+        except sqlite3.Error as e:
+            logger.error(f"User verification failed: {str(e)}")
+            raise Exception(f"User verification failed: {str(e)}")
+        finally:
+            if conn:
+                conn.close()
+
+    @classmethod
     def save_audio_result(cls, 
-                          filename, 
-                          language, 
-                          model, 
-                          is_conversation, 
-                          raw_text, 
-                          arabic_text, 
-                          translation_text, 
-                          json_data, 
-                          reasoning, 
-                          preprocessing_time, 
-                          voice_processing_time, 
-                          llm_processing_time,
-                          doctor_name=None,
-                          feedback=None):
+                          user_id: int,
+                          filename: str, 
+                          language: str, 
+                          model: str, 
+                          is_conversation: bool, 
+                          raw_text: str, 
+                          arabic_text: str, 
+                          translation_text: str, 
+                          json_data: str, 
+                          reasoning: str, 
+                          preprocessing_time: float, 
+                          voice_processing_time: float, 
+                          llm_processing_time: float,
+                          doctor_name: str = None,
+                          feedback: str = None):
         """Save audio processing results to database"""
         try:
             conn = sqlite3.connect(cls.DB_PATH)
@@ -72,25 +130,14 @@ class DatabaseService:
             
             cursor.execute('''
             INSERT INTO audio_results 
-            (filename, language, model, is_conversation, raw_text, arabic_text, translation_text, 
+            (user_id, filename, language, model, is_conversation, raw_text, arabic_text, translation_text, 
             json_data, reasoning, preprocessing_time, voice_processing_time, llm_processing_time,
             doctor_name, feedback)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                filename, 
-                language, 
-                model, 
-                is_conversation, 
-                raw_text, 
-                arabic_text, 
-                translation_text, 
-                json_data, 
-                reasoning, 
-                preprocessing_time, 
-                voice_processing_time, 
-                llm_processing_time,
-                doctor_name,
-                feedback
+                user_id, filename, language, model, is_conversation, raw_text, arabic_text,
+                translation_text, json_data, reasoning, preprocessing_time, voice_processing_time,
+                llm_processing_time, doctor_name, feedback
             ))
             
             conn.commit()
@@ -128,43 +175,27 @@ class DatabaseService:
             if conn:
                 conn.close()
 
-
     @classmethod
-    def update_feedback(cls, result_id, feedback):
-        """
-        Update the feedback for an existing audio result record.
-        
-        Args:
-            result_id: The ID of the result to update
-            feedback: The new feedback text
-            
-        Returns:
-            bool: True if successful, False otherwise
-        """
+    def update_feedback(cls, result_id: int, feedback: str) -> bool:
+        """Update feedback for an existing audio result record."""
         try:
             conn = sqlite3.connect(cls.DB_PATH)
             cursor = conn.cursor()
             
-            # Update the feedback field
-            query = """
-            UPDATE audio_results 
-            SET feedback = ?
-            WHERE id = ?
-            """
-            
-            cursor.execute(query, (feedback, result_id))
+            cursor.execute(
+                "UPDATE audio_results SET feedback = ? WHERE id = ?",
+                (feedback, result_id)
+            )
             conn.commit()
             
-            # Check if any rows were affected
             if cursor.rowcount > 0:
                 logger.info(f"Updated feedback for result ID: {result_id}")
                 return True
             else:
                 logger.warning(f"No record found with ID: {result_id}")
                 return False
-                
         except Exception as e:
-            logger.error(f"Error updating feedback in database: {str(e)}", exc_info=True)
+            logger.error(f"Error updating feedback in database: {str(e)}")
             return False
         finally:
             if conn:

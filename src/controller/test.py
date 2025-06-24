@@ -169,8 +169,8 @@ async def upload(
                 return
             if cancel_events[user_id].is_set():
                 logger.info(f"Processing cancelled after transcription for user_id: {user_id}")
-                yield json.dumps({"step": "cancelled", "data": "Processing stopped"}) + "\n"
-                await save_partial_results(partial_results, user_id)
+                async for result in save_partial_results(partial_results, user_id):
+                    yield result
                 return
             await asyncio.sleep(0.1)
 
@@ -187,12 +187,15 @@ async def upload(
                     "method": "llm_validation",
                     "raw_response": result
                 }
-                
+                partial_results["validation_data"] = json.dumps(validation_data)
+                yield json.dumps({"step": "validation", "data": validation_data}) + "\n"
+
                 if not validation_data["is_medical"]:
                     logger.info(f"Non-medical audio detected for user_id: {user_id}")
                     yield json.dumps({"step": "error", "data": "Non-medical audio detected. Please upload medical-related audio."}) + "\n"
                     partial_results["reasoning"] = "Processing stopped due to non-medical audio"
-                    await save_partial_results(partial_results, user_id)
+                    async for result in save_partial_results(partial_results, user_id):
+                        yield result
                     return
             except Exception as e:
                 logger.error(f"Medical validation error: {str(e)}", exc_info=True)
@@ -200,8 +203,8 @@ async def upload(
                 return
             if cancel_events[user_id].is_set():
                 logger.info(f"Processing cancelled after validation for user_id: {user_id}")
-                yield json.dumps({"step": "cancelled", "data": "Processing stopped"}) + "\n"
-                await save_partial_results(partial_results, user_id)
+                async for result in save_partial_results(partial_results, user_id):
+                    yield result
                 return
             await asyncio.sleep(0.1)
 
@@ -217,8 +220,8 @@ async def upload(
                 return
             if cancel_events[user_id].is_set():
                 logger.info(f"Processing cancelled after refinement for user_id: {user_id}")
-                yield json.dumps({"step": "cancelled", "data": "Processing stopped"}) + "\n"
-                await save_partial_results(partial_results, user_id)
+                async for result in save_partial_results(partial_results, user_id):
+                    yield result
                 return
             await asyncio.sleep(0.1)
 
@@ -237,8 +240,8 @@ async def upload(
                 return
             if cancel_events[user_id].is_set():
                 logger.info(f"Processing cancelled after translation for user_id: {user_id}")
-                yield json.dumps({"step": "cancelled", "data": "Processing stopped"}) + "\n"
-                await save_partial_results(partial_results, user_id)
+                async for result in save_partial_results(partial_results, user_id):
+                    yield result
                 return
             await asyncio.sleep(0.1)
 
@@ -255,8 +258,8 @@ async def upload(
                 return
             if cancel_events[user_id].is_set():
                 logger.info(f"Processing cancelled after feature extraction for user_id: {user_id}")
-                yield json.dumps({"step": "cancelled", "data": "Processing stopped"}) + "\n"
-                await save_partial_results(partial_results, user_id)
+                async for result in save_partial_results(partial_results, user_id):
+                    yield result
                 return
             await asyncio.sleep(0.1)
 
@@ -283,7 +286,7 @@ async def upload(
                 logger.error(f"Error cleaning up file: {str(e)}")
 
     async def save_partial_results(results: dict, user_id: int):
-        """Save partial results to database upon cancellation or error."""
+        """Save partial results to database upon cancellation."""
         try:
             results["reasoning"] = results.get("reasoning", "Processing cancelled by user")
             result_id = DatabaseService.save_audio_result(
@@ -301,8 +304,7 @@ async def upload(
                 voice_processing_time=results.get("voice_processing_time", 0.0),
                 llm_processing_time=results.get("llm_processing_time", 0.0),
                 doctor_name=results.get("doctor_name"),
-                feedback=results.get("feedback"),
-                validation_data=results.get("validation_data")
+                feedback=results.get("feedback")
             )
             logger.info(f"Saved partial results with ID: {result_id}")
             yield json.dumps({"step": "database_save", "data": {"result_id": result_id}}) + "\n"
@@ -354,4 +356,4 @@ if __name__ == "__main__":
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sys.path.insert(0, project_root)
     
-    uvicorn.run("src.controller.app:app", host="0.0.0.0", port=8587, reload=Config.DEBUG)
+    uvicorn.run("src.controller.test:app", host="0.0.0.0", port=8587, reload=Config.DEBUG)
