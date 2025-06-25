@@ -74,6 +74,40 @@ async def register(
         return {"access_token": access_token, "token_type": "bearer"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@app.post("/change-password")
+async def change_password(
+    request: Request,
+    current_user: dict = Depends(AuthService.get_current_user)
+):
+    """Change the user's password."""
+    try:
+        data = await request.json()
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
+        
+        if not current_password or not new_password:
+            raise HTTPException(status_code=400, detail="Current and new passwords are required")
+        
+        user = DatabaseService.verify_user(current_user["username"])
+        if not AuthService.verify_password(current_password, user["hashed_password"]):
+            raise HTTPException(status_code=401, detail="Incorrect current password")
+        
+        hashed_new_password = AuthService.hash_password(new_password)
+        success = DatabaseService.update_user_password(username = user["username"], new_pass = hashed_new_password)
+        
+        if success:
+            logger.info(f"Password updated for user: {current_user['username']}")
+            return {"status": "success", "message": "Password updated successfully"}
+        else:
+            logger.error(f"Failed to update password for user: {current_user['username']}")
+            raise HTTPException(status_code=500, detail="Failed to update password")
+            
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error changing password: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error changing password: {str(e)}")
 
 @app.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -187,9 +221,6 @@ async def upload(
                     "method": "llm_validation",
                     "raw_response": result
                 }
-                partial_results["validation_data"] = json.dumps(validation_data)
-                yield json.dumps({"step": "validation", "data": validation_data}) + "\n"
-
                 if not validation_data["is_medical"]:
                     logger.info(f"Non-medical audio detected for user_id: {user_id}")
                     yield json.dumps({"step": "error", "data": "Non-medical audio detected. Please upload medical-related audio."}) + "\n"

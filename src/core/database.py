@@ -88,6 +88,38 @@ class DatabaseService:
                 conn.close()
 
     @classmethod
+    def update_user_password(cls, username, new_pass):
+        """Update a user's password if the user exists."""
+        try:
+            conn = sqlite3.connect(cls.DB_PATH)
+            cursor = conn.cursor()
+
+            # Check if the user exists
+            cursor.execute("SELECT 1 FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+            if not user:
+                logger.warning(f"User not found: {username}")
+                return False
+
+            # Update the password
+            cursor.execute(
+                "UPDATE users SET hashed_password = ? WHERE username = ?",
+                (new_pass, username)
+            )
+            conn.commit()
+            logger.info(f"Password updated for user: {username}")
+            return True
+
+        except sqlite3.Error as e:
+            logger.error(f"User password update failed: {str(e)}")
+            raise Exception(f"User password update failed: {str(e)}")
+
+        finally:
+            if conn:
+                conn.close()
+
+
+    @classmethod
     def verify_user(cls, username: str) -> dict:
         """Verify user exists and return user data."""
         try:
