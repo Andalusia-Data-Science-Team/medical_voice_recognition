@@ -58,7 +58,7 @@ ffmpeg -version
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/yourusername/medical-voice-assistant.git
-cd medical-voice-assistant
+cd medical_voice_recognition
 ```
 
 ### 2. Environment Configuration
